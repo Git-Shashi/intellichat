@@ -1,0 +1,184 @@
+import asyncHandler from "../utils/asyncHandler.js";
+import ApiError from "../utils/ApiError.js";
+import { processMessage } from "../services/aiService.js";
+import { Conversation } from "../models/conversation.models.js";
+import { Message } from "../models/message.models.js";
+
+/**
+ * Create a new conversation
+ */
+const createConversation = asyncHandler(async (req, res) => {
+    const { title, aiProvider = "groq" } = req.body;
+    const userId = req.user._id;
+
+    const conversation = await Conversation.create({
+        title: title || "New Conversation",
+        userId,
+        aiProvider
+    });
+
+    res.status(201).json({
+        success: true,
+        message: "Conversation created successfully",
+        data: conversation
+    });
+});
+
+/**
+ * Get all conversations for a user
+ */
+const getUserConversations = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const { page = 1, limit = 10 } = req.query;
+
+    const conversations = await Conversation.find({ userId })
+        .sort({ updatedAt: -1 })
+        .limit(limit * 1)
+        .skip((page - 1) * limit)
+        .populate('messages')
+        .exec();
+
+    const total = await Conversation.countDocuments({ userId });
+
+    res.status(200).json({
+        success: true,
+        message: "Conversations retrieved successfully",
+        data: {
+            conversations,
+            pagination: {
+                current: page,
+                pages: Math.ceil(total / limit),
+                total
+            }
+        }
+    });
+});
+
+/**
+ * Get a specific conversation with messages
+ */
+const getConversation = asyncHandler(async (req, res) => {
+    const { conversationId } = req.params;
+    const userId = req.user._id;
+
+    const conversation = await Conversation.findOne({
+        _id: conversationId,
+        userId
+    }).populate('messages');
+
+    if (!conversation) {
+        throw new ApiError("Conversation not found", 404);
+    }
+
+    res.status(200).json({
+        success: true,
+        message: "Conversation retrieved successfully",
+        data: conversation
+    });
+});
+
+/**
+ * Send a message in a conversation
+ */
+const sendMessage = asyncHandler(async (req, res) => {
+    const { conversationId } = req.params;
+    const { content, aiProvider } = req.body;
+    const userId = req.user._id;
+
+    // Find conversation
+    const conversation = await Conversation.findOne({
+        _id: conversationId,
+        userId
+    });
+
+    if (!conversation) {
+        throw new ApiError("Conversation not found", 404);
+    }
+
+    // Get conversation history
+    const messages = await Message.find({ conversationId })
+        .sort({ createdAt: 1 })
+        .select('role content');
+
+    // Add user message
+    const userMessage = await Message.create({
+        conversationId,
+        role: 'user',
+        content,
+        userId
+    });
+
+    // Prepare messages for AI
+    const aiMessages = [
+        ...messages.map(msg => ({ role: msg.role, content: msg.content })),
+        { role: 'user', content }
+    ];
+
+    try {
+        // Get AI response
+        const aiResponse = await processMessage(
+            aiProvider || conversation.aiProvider,
+            aiMessages,
+            { temperature: 0.7, maxTokens: 1000 }
+        );
+
+        // Save AI message
+        const aiMessage = await Message.create({
+            conversationId,
+            role: 'assistant',
+            content: aiResponse.content,
+            userId
+        });
+
+        // Update conversation
+        conversation.lastMessage = aiMessage._id;
+        conversation.updatedAt = new Date();
+        await conversation.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Message sent successfully",
+            data: {
+                userMessage,
+                aiMessage,
+                conversation: conversation
+            }
+        });
+    } catch (error) {
+        console.error("AI processing error:", error);
+        throw new ApiError(`AI processing failed: ${error.message}`, 500);
+    }
+});
+
+/**
+ * Delete a conversation
+ */
+const deleteConversation = asyncHandler(async (req, res) => {
+    const { conversationId } = req.params;
+    const userId = req.user._id;
+
+    const conversation = await Conversation.findOneAndDelete({
+        _id: conversationId,
+        userId
+    });
+
+    if (!conversation) {
+        throw new ApiError("Conversation not found", 404);
+    }
+
+    // Delete all messages in the conversation
+    await Message.deleteMany({ conversationId });
+
+    res.status(200).json({
+        success: true,
+        message: "Conversation deleted successfully"
+    });
+});
+
+export {
+    createConversation,
+    getUserConversations,
+    getConversation,
+    sendMessage,
+    deleteConversation
+};

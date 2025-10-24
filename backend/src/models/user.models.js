@@ -49,6 +49,11 @@ const userSchema=new mongoose.Schema({
       type: Date,
       default: null,
     },
+    refreshTokenHash: {
+      type: String,
+      default: null,
+      select: false // Exclude from query results by default
+    },
   },
   {
     timestamps: true, // 👈 Automatically adds createdAt and updatedAt
@@ -64,22 +69,28 @@ userSchema.index({ name: 1 }); // For searching users by name
 userSchema.pre('save', async function (next) {
   if(!this.isModified('password')){
     return next();
-
   }
   try {
-     const salt=await bcrypt.genSalt(10);
-  this.password=await bcrypt.hash(this.password,salt);
-  next();
+    // Only hash the password if it has been modified (or is new)
+    this.password = await bcrypt.hash(this.password, 10);
+    next();
   } catch (error) {
     next(error);
   }
-  
 })
 userSchema.methods.comparePassword=async function(candidatePassword){ 
   try {
-  return await bcrypt.compare(candidatePassword,this.password);
+    console.log("Comparing password:");
+    console.log("Candidate password:", candidatePassword);
+    console.log("Stored password hash:", this.password ? "Present" : "Missing");
+    console.log("Password hash length:", this.password ? this.password.length : 0);
     
+    const isMatch = await bcrypt.compare(candidatePassword, this.password);
+    console.log("Password comparison result:", isMatch);
+    
+    return isMatch;
   } catch (error) {
+    console.log("Password comparison error:", error.message);
     throw error;
   }
 };
