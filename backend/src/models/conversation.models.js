@@ -12,10 +12,14 @@ const conversationSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  model: {
+  aiProvider: {
     type: String,
     required: true,
-    default: 'gpt-4'
+    default: 'groq'
+  },
+  lastMessage: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Message'
   },
   messageCount: {
     type: Number,
@@ -31,5 +35,35 @@ const conversationSchema = new mongoose.Schema({
 
 // Add compound index for efficient querying
 conversationSchema.index({ userId: 1, updatedAt: -1 });
+
+// Instance methods
+conversationSchema.methods.updateLastMessage = function(messageId) {
+    this.lastMessage = messageId;
+    this.updatedAt = new Date();
+    return this.save();
+};
+
+conversationSchema.methods.incrementMessageCount = function() {
+    this.messageCount += 1;
+    return this.save();
+};
+
+// Static methods
+conversationSchema.statics.createConversation = function(userId, title, aiProvider = 'groq') {
+    return this.create({
+        userId,
+        title: title || "New Conversation",
+        aiProvider
+    });
+};
+
+conversationSchema.statics.getUserConversations = function(userId, page = 1, limit = 10) {
+    return this.find({ userId })
+        .sort({ updatedAt: -1 })
+        .limit(limit * 1)
+        .skip((page - 1) * limit)
+        .populate('lastMessage')
+        .exec();
+};
 
 export const Conversation = mongoose.model('Conversation', conversationSchema);

@@ -11,17 +11,23 @@ const createConversation = asyncHandler(async (req, res) => {
     const { title, aiProvider = "groq" } = req.body;
     const userId = req.user._id;
 
-    const conversation = await Conversation.create({
-        title: title || "New Conversation",
-        userId,
-        aiProvider
-    });
+    // Validate input
+    if (!aiProvider || !['groq', 'gemini'].includes(aiProvider)) {
+        throw new ApiError("Invalid AI provider. Must be 'groq' or 'gemini'", 400);
+    }
 
-    res.status(201).json({
-        success: true,
-        message: "Conversation created successfully",
-        data: conversation
-    });
+    try {
+        const conversation = await Conversation.createConversation(userId, title, aiProvider);
+        
+        res.status(201).json({
+            success: true,
+            message: "Conversation created successfully",
+            data: conversation
+        });
+    } catch (error) {
+        console.error("Error creating conversation:", error);
+        throw new ApiError("Failed to create conversation", 500);
+    }
 });
 
 /**
@@ -31,27 +37,26 @@ const getUserConversations = asyncHandler(async (req, res) => {
     const userId = req.user._id;
     const { page = 1, limit = 10 } = req.query;
 
-    const conversations = await Conversation.find({ userId })
-        .sort({ updatedAt: -1 })
-        .limit(limit * 1)
-        .skip((page - 1) * limit)
-        .populate('messages')
-        .exec();
+    try {
+        const conversations = await Conversation.getUserConversations(userId, page, limit);
+        const total = await Conversation.countDocuments({ userId });
 
-    const total = await Conversation.countDocuments({ userId });
-
-    res.status(200).json({
-        success: true,
-        message: "Conversations retrieved successfully",
-        data: {
-            conversations,
-            pagination: {
-                current: page,
-                pages: Math.ceil(total / limit),
-                total
+        res.status(200).json({
+            success: true,
+            message: "Conversations retrieved successfully",
+            data: {
+                conversations,
+                pagination: {
+                    current: parseInt(page),
+                    pages: Math.ceil(total / limit),
+                    total
+                }
             }
-        }
-    });
+        });
+    } catch (error) {
+        console.error("Error getting conversations:", error);
+        throw new ApiError("Failed to retrieve conversations", 500);
+    }
 });
 
 /**
@@ -105,7 +110,8 @@ const sendMessage = asyncHandler(async (req, res) => {
         conversationId,
         role: 'user',
         content,
-        userId
+        userId,
+        aiProvider: aiProvider || conversation.aiProvider
     });
 
     // Prepare messages for AI
@@ -122,18 +128,18 @@ const sendMessage = asyncHandler(async (req, res) => {
             { temperature: 0.7, maxTokens: 1000 }
         );
 
-        // Save AI message
-        const aiMessage = await Message.create({
-            conversationId,
-            role: 'assistant',
-            content: aiResponse.content,
-            userId
-        });
+    // Save AI message
+    const aiMessage = await Message.create({
+        conversationId,
+        role: 'assistant',
+        content: aiResponse.content,
+        userId,
+        aiProvider: aiProvider || conversation.aiProvider
+    });
 
-        // Update conversation
-        conversation.lastMessage = aiMessage._id;
-        conversation.updatedAt = new Date();
-        await conversation.save();
+        // Update conversation using instance methods
+        await conversation.updateLastMessage(aiMessage._id);
+        await conversation.incrementMessageCount();
 
         res.status(200).json({
             success: true,
