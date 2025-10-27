@@ -1,23 +1,37 @@
-import { useDispatch } from 'react-redux';
-import { setCurrentConversation } from '../../../redux/slices/chatSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchConversationMessages } from '../../../redux/slices/chatSlice';
 
-const ConversationItem = ({ conversation, isActive }) => {
+const ConversationItem = ({ conversation }) => {
   const dispatch = useDispatch();
+  const currentConversation = useSelector(state => state.chat.currentConversation);
+  const isActive = currentConversation?._id === conversation._id;
+
+  const handleConversationClick = () => {
+    if (!isActive) {
+      dispatch(fetchConversationMessages(conversation._id))
+        .unwrap()
+        .catch(error => {
+          console.error('Failed to fetch messages:', error);
+        });
+    }
+  };
 
   return (
     <div
-      onClick={() => dispatch(setCurrentConversation(conversation))}
-      className={`px-4 py-3 cursor-pointer transition-colors ${
-        isActive 
-          ? 'bg-gray-800 text-white' 
-          : 'text-gray-300 hover:bg-gray-800'
-      }`}
+      onClick={handleConversationClick}
+      className={`conversation-item cursor-pointer p-3 rounded-lg transition-colors
+        ${isActive ? 'bg-gray-700 text-white' : 'hover:bg-gray-100'}`}
     >
-      <div className="text-sm font-medium truncate">
-        {conversation.title}
+      <div className="conversation-title font-medium">
+        {conversation.title || 'New Chat'}
       </div>
-      <div className="text-xs text-gray-500 mt-1">
-        {new Date(conversation.updatedAt).toLocaleDateString()}
+      <div className={`conversation-meta text-sm ${isActive ? 'text-gray-300' : 'text-gray-500'}`}>
+        <span className="conversation-date">
+          {new Date(conversation.updatedAt).toLocaleDateString()}
+        </span>
+        <span className="message-count ml-2">
+          {conversation.messageCount} messages
+        </span>
       </div>
     </div>
   );

@@ -40,17 +40,23 @@ export const chatService = {
   // Get a specific conversation with messages
   getConversation: async (conversationId) => {
     try {
-      const response = await fetch(
-        `${BASE_URL}/chat/conversations/${conversationId}`,
-        {
-          credentials: 'include'
+        const response = await fetch(
+            `${BASE_URL}/chat/conversations/${conversationId}`,
+            {
+                credentials: 'include'
+            }
+        );
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to fetch conversation');
         }
-      );
-      
-      if (!response.ok) throw new Error('Failed to fetch conversation');
-      return response.json();
+
+        const data = await response.json();
+        return data;
     } catch (error) {
-      throw new Error(error.message);
+        console.error('Error fetching conversation:', error);
+        throw error;
     }
   },
 
@@ -69,10 +75,20 @@ export const chatService = {
         }
       );
       
-      if (!response.ok) throw new Error('Failed to send message');
-      return response.json();
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to send message');
+      }
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to send message');
+      }
+
+      return data;
     } catch (error) {
-      throw new Error(error.message);
+      console.error('Error in sendMessage:', error);
+      throw error;
     }
   },
 

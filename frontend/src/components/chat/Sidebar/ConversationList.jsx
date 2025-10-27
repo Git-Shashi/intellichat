@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchConversations } from '../../../redux/slices/chatSlice';
 import ConversationItem from './ConversationItem';
 import NewChatButton from './NewChatButton';
+import UserProfileButton from './UserProfileButton';
 
 const ConversationList = () => {
   const dispatch = useDispatch();
@@ -15,10 +16,12 @@ const ConversationList = () => {
 
   return (
     <div className="flex flex-col h-full bg-gray-900">
+      {/* New Chat Button */}
       <div className="p-4 border-b border-gray-700">
         <NewChatButton />
       </div>
-      
+
+      {/* Conversations List */}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center h-32">
@@ -39,6 +42,9 @@ const ConversationList = () => {
           </div>
         )}
       </div>
+
+      {/* User Profile Button at bottom */}
+      <UserProfileButton />
     </div>
   );
 };

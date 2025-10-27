@@ -3,6 +3,7 @@ import ApiError from "../utils/ApiError.js";
 import { processMessage } from "../services/aiService.js";
 import { Conversation } from "../models/conversation.models.js";
 import { Message } from "../models/message.models.js";
+import { generateTitleFromMessage } from '../utils/titleUtils.js';
 
 /**
  * Create a new conversation
@@ -66,19 +67,27 @@ const getConversation = asyncHandler(async (req, res) => {
     const { conversationId } = req.params;
     const userId = req.user._id;
 
+    // Find the conversation
     const conversation = await Conversation.findOne({
         _id: conversationId,
         userId
-    }).populate('messages');
+    });
 
     if (!conversation) {
         throw new ApiError("Conversation not found", 404);
     }
 
+    // Fetch messages separately
+    const messages = await Message.find({ conversationId })
+        .sort({ createdAt: 1 });
+
     res.status(200).json({
         success: true,
         message: "Conversation retrieved successfully",
-        data: conversation
+        data: {
+            conversation,
+            messages
+        }
     });
 });
 
@@ -113,6 +122,13 @@ const sendMessage = asyncHandler(async (req, res) => {
         userId,
         aiProvider: aiProvider || conversation.aiProvider
     });
+
+    // If this is the first message, update conversation title
+    if (conversation.messageCount === 0) {
+        const title = generateTitleFromMessage(content);
+        conversation.title = title;
+        await conversation.save();
+    }
 
     // Prepare messages for AI
     const aiMessages = [
