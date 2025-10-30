@@ -1,14 +1,30 @@
 import { useDispatch } from 'react-redux';
-import { createConversation } from '../../../redux/slices/chatSlice';
+import { createConversation, fetchConversations } from '../../../redux/slices/chatSlice';
 
 const NewChatButton = () => {
   const dispatch = useDispatch();
 
-  const handleNewChat = () => {
-    dispatch(createConversation({
-      title: "New Chat",
-      aiProvider: "groq" // default AI provider
-    }));
+  const handleNewChat = async () => {
+    try {
+      // Create a new conversation with a timestamp-based title
+      const timestamp = new Date().toLocaleString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+      
+      await dispatch(createConversation({
+        title: `Chat ${timestamp}`,
+        aiProvider: "groq"
+      })).unwrap();
+      
+      // Refresh the conversation list
+      dispatch(fetchConversations());
+    } catch (error) {
+      console.error('Failed to create conversation:', error);
+      alert('Failed to create new chat');
+    }
   };
 
   return (

@@ -1,69 +1,85 @@
 import mongoose from 'mongoose';
 
 const conversationSchema = new mongoose.Schema({
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true,
-    index: true
-  },
-  title: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  aiProvider: {
-    type: String,
-    required: true,
-    default: 'groq'
-  },
-  lastMessage: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Message'
-  },
-  messageCount: {
-    type: Number,
-    default: 0
-  },
-  isPinned: {
-    type: Boolean,
-    default: false
-  }
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+        index: true
+    },
+    title: {
+        type: String,
+        required: true,
+        trim: true,
+        default: 'New Conversation'
+    },
+    lastMessageAt: {
+        type: Date,
+        default: Date.now
+    },
+    messageCount: {
+        type: Number,
+        default: 0
+    },
+    lastMessageId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Message',
+        default: null
+    },
+    aiProvider: {
+        type: String,
+        default: 'groq',
+        enum: ['groq', 'gemini']
+    },
+    aiModel: {
+        type: String,
+        default: 'llama-3.3-70b-versatile'
+    }
 }, {
-  timestamps: true // Adds createdAt and updatedAt
+    timestamps: true
 });
 
-// Add compound index for efficient querying
-conversationSchema.index({ userId: 1, updatedAt: -1 });
-
-// Instance methods
-conversationSchema.methods.updateLastMessage = function(messageId) {
-    this.lastMessage = messageId;
-    this.updatedAt = new Date();
-    return this.save();
-};
-
-conversationSchema.methods.incrementMessageCount = function() {
-    this.messageCount += 1;
-    return this.save();
-};
-
-// Static methods
-conversationSchema.statics.createConversation = function(userId, title, aiProvider = 'groq') {
-    return this.create({
+// Static method to create a new conversation
+conversationSchema.statics.createConversation = async function(userId, title = 'New Conversation', aiProvider = 'groq', aiModel = null) {
+    // Set default model based on provider if not provided
+    if (!aiModel) {
+        aiModel = aiProvider === 'gemini' ? 'gemini-2.5-flash' : 'llama-3.3-70b-versatile';
+    }
+    
+    const conversation = await this.create({
         userId,
-        title: title || "New Conversation",
-        aiProvider
+        title,
+        aiProvider,
+        aiModel,
+        messageCount: 0,
+        lastMessageAt: new Date()
     });
+    return conversation;
 };
 
-conversationSchema.statics.getUserConversations = function(userId, page = 1, limit = 10) {
-    return this.find({ userId })
-        .sort({ updatedAt: -1 })
-        .limit(limit * 1)
-        .skip((page - 1) * limit)
-        .populate('lastMessage')
-        .exec();
+// Static method to get user conversations with pagination
+conversationSchema.statics.getUserConversations = async function(userId, page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const conversations = await this.find({ userId })
+        .sort({ lastMessageAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit));
+    return conversations;
 };
 
-export const Conversation = mongoose.model('Conversation', conversationSchema);
+// Instance method to update last message
+conversationSchema.methods.updateLastMessage = async function(messageId) {
+    this.lastMessageId = messageId;
+    this.lastMessageAt = new Date();
+    return await this.save();
+};
+
+// Instance method to increment message count
+conversationSchema.methods.incrementMessageCount = async function() {
+    this.messageCount += 1;
+    return await this.save();
+};
+
+const Conversation = mongoose.model('Conversation', conversationSchema);
+
+export default Conversation;

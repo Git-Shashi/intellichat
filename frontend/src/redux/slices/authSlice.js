@@ -15,7 +15,7 @@ export const register = createAsyncThunk(
     async (userData, { rejectWithValue }) => {
         try {
             const response = await authService.register(userData);
-            return response;
+            return response.data; // Extract the data object
         } catch (error) {
             return rejectWithValue(error.message);
         }
@@ -27,7 +27,7 @@ export const login = createAsyncThunk(
     async (credentials, { rejectWithValue }) => {
         try {
             const response = await authService.login(credentials);
-            return response.data; // Should include user object with name and email
+            return response.data; // Extract the data object
         } catch (error) {
             return rejectWithValue(error.message);
         }
@@ -39,7 +39,31 @@ export const refreshToken = createAsyncThunk(
     async (_, { rejectWithValue }) => {
         try {
             const response = await authService.refreshToken();
-            return response;
+            return response.data; // Extract the data object
+        } catch (error) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const logoutUser = createAsyncThunk(
+    'auth/logout',
+    async (_, { rejectWithValue }) => {
+        try {
+            await authService.logout();
+            return null;
+        } catch (error) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const updatePreferences = createAsyncThunk(
+    'auth/updatePreferences',
+    async (preferences, { rejectWithValue }) => {
+        try {
+            const response = await authService.updatePreferences(preferences);
+            return response.data; // Extract the data object
         } catch (error) {
             return rejectWithValue(error.message);
         }
@@ -51,13 +75,12 @@ const authSlice = createSlice({
     name: 'auth',
     initialState,
     reducers: {
+        clearError: (state) => {
+            state.error = null;
+        },
         logout: (state) => {
             state.user = null;
             state.isAuthenticated = false;
-            state.loading = false;
-            state.error = null;
-        },
-        clearError: (state) => {
             state.error = null;
         },
     },
@@ -106,9 +129,36 @@ const authSlice = createSlice({
                 state.loading = false;
                 state.isAuthenticated = false;
                 state.user = null;
+            })
+            // Logout
+            .addCase(logoutUser.pending, (state) => {
+                state.loading = true;
+            })
+            .addCase(logoutUser.fulfilled, (state) => {
+                state.loading = false;
+                state.isAuthenticated = false;
+                state.user = null;
+                state.error = null;
+            })
+            .addCase(logoutUser.rejected, (state) => {
+                state.loading = false;
+                state.isAuthenticated = false;
+                state.user = null;
+            })
+            // Update Preferences
+            .addCase(updatePreferences.pending, (state) => {
+                state.loading = true;
+            })
+            .addCase(updatePreferences.fulfilled, (state, action) => {
+                state.loading = false;
+                state.user = action.payload.user;
+            })
+            .addCase(updatePreferences.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
             });
     },
 });
 
-export const { logout, clearError } = authSlice.actions;
+export const { clearError, logout } = authSlice.actions;
 export default authSlice.reducer;

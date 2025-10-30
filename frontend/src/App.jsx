@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { refreshToken } from './redux/slices/authSlice'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
@@ -8,15 +8,30 @@ import ChatLayout from './components/chat/ChatLayout'
 
 function App() {
   const dispatch = useDispatch()
-  const isAuthenticated = useSelector(state => state.auth.isAuthenticated)
-
-  // Add debug logging
-  console.log('App rendering, isAuthenticated:', isAuthenticated);
+  const { isAuthenticated, loading } = useSelector(state => state.auth)
+  const [isInitializing, setIsInitializing] = useState(true)
 
   useEffect(() => {
-    console.log('App useEffect running');
-    dispatch(refreshToken())
+    const initAuth = async () => {
+      try {
+        await dispatch(refreshToken()).unwrap()
+      } catch (error) {
+        console.log('No valid session found')
+      } finally {
+        setIsInitializing(false)
+      }
+    }
+    initAuth()
   }, [dispatch])
+
+  // Show loading state while checking authentication
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    )
+  }
 
   return (
     <Router>
@@ -28,7 +43,7 @@ function App() {
               !isAuthenticated ? (
                 <LoginForm />
               ) : (
-                <Navigate to="/" />
+                <Navigate to="/" replace />
               )
             } 
           />
@@ -38,7 +53,7 @@ function App() {
               !isAuthenticated ? (
                 <RegisterForm />
               ) : (
-                <Navigate to="/" />
+                <Navigate to="/" replace />
               )
             } 
           />
@@ -48,7 +63,7 @@ function App() {
               isAuthenticated ? (
                 <ChatLayout />
               ) : (
-                <Navigate to="/login" />
+                <Navigate to="/login" replace />
               )
             } 
           />

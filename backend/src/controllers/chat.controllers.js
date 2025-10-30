@@ -1,7 +1,7 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import { processMessage } from "../services/aiService.js";
-import { Conversation } from "../models/conversation.models.js";
+import Conversation from "../models/conversation.models.js";
 import { Message } from "../models/message.models.js";
 import { generateTitleFromMessage } from '../utils/titleUtils.js';
 
@@ -9,16 +9,31 @@ import { generateTitleFromMessage } from '../utils/titleUtils.js';
  * Create a new conversation
  */
 const createConversation = asyncHandler(async (req, res) => {
-    const { title, aiProvider = "groq" } = req.body;
+    const { title, aiProvider } = req.body;
     const userId = req.user._id;
 
+    console.log('🆕 Creating new conversation:');
+    console.log('   User preferences:', req.user.preferences);
+    console.log('   Requested provider:', aiProvider);
+
+    // Use user's preferred provider if not specified
+    const selectedProvider = aiProvider || req.user.preferences?.aiProvider || 'groq';
+    
+    // Use user's preferred model for the selected provider
+    const selectedModel = req.user.preferences?.aiModel || 
+        (selectedProvider === 'gemini' ? 'gemini-1.5-flash' : 'llama-3.3-70b-versatile');
+
+    console.log('   ✅ Selected:', selectedProvider, '/', selectedModel);
+
     // Validate input
-    if (!aiProvider || !['groq', 'gemini'].includes(aiProvider)) {
+    if (!['groq', 'gemini'].includes(selectedProvider)) {
         throw new ApiError("Invalid AI provider. Must be 'groq' or 'gemini'", 400);
     }
 
     try {
-        const conversation = await Conversation.createConversation(userId, title, aiProvider);
+        const conversation = await Conversation.createConversation(userId, title, selectedProvider, selectedModel);
+        
+        console.log('   💾 Saved conversation:', conversation._id, '-', conversation.aiProvider, '/', conversation.aiModel);
         
         res.status(201).json({
             success: true,

@@ -55,11 +55,62 @@ const chatSlice = createSlice({
     currentConversation: null,
     messages: [],
     loading: false,
-    error: null
+    error: null,
+    streamingMessage: null, // For real-time streaming
+    isStreaming: false
   },
   reducers: {
     clearError: (state) => {
       state.error = null;
+    },
+    // Real-time streaming reducers
+    startStreaming: (state, action) => {
+      state.isStreaming = true;
+      state.streamingMessage = {
+        _id: action.payload.messageId,
+        role: 'assistant',
+        content: '',
+        conversationId: state.currentConversation?._id,
+        isStreaming: true
+      };
+    },
+    appendStreamChunk: (state, action) => {
+      if (state.streamingMessage) {
+        state.streamingMessage.content += action.payload.content;
+      }
+    },
+    completeStreaming: (state, action) => {
+      if (state.streamingMessage) {
+        // Add the completed streaming message to messages
+        state.messages.push({
+          ...state.streamingMessage,
+          _id: action.payload.messageId,
+          content: action.payload.fullContent,
+          isStreaming: false,
+          createdAt: action.payload.timestamp
+        });
+        state.streamingMessage = null;
+        state.isStreaming = false;
+      }
+    },
+    cancelStreaming: (state) => {
+      state.streamingMessage = null;
+      state.isStreaming = false;
+    },
+    addUserMessage: (state, action) => {
+      state.messages.push(action.payload);
+    },
+    updateConversationTitle: (state, action) => {
+      const { conversationId, title } = action.payload;
+      // Update in conversations list
+      const convIndex = state.conversations.findIndex(conv => conv._id === conversationId);
+      if (convIndex !== -1) {
+        state.conversations[convIndex].title = title;
+      }
+      // Update current conversation if it matches
+      if (state.currentConversation?._id === conversationId) {
+        state.currentConversation.title = title;
+      }
     }
   },
   extraReducers: (builder) => {
@@ -78,9 +129,20 @@ const chatSlice = createSlice({
         state.error = action.error.message;
       })
       // Create Conversation
+      .addCase(createConversation.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(createConversation.fulfilled, (state, action) => {
+        state.loading = false;
         state.conversations.unshift(action.payload);
         state.currentConversation = action.payload;
+        state.messages = []; // Clear messages for new conversation
+        state.error = null;
+      })
+      .addCase(createConversation.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message;
       })
       // Send Message
       .addCase(sendMessage.pending, (state) => {
@@ -126,5 +188,5 @@ const chatSlice = createSlice({
   }
 });
 
-export const { clearError } = chatSlice.actions;
+export const { clearError, startStreaming, appendStreamChunk, completeStreaming, cancelStreaming, addUserMessage, updateConversationTitle } = chatSlice.actions;
 export default chatSlice.reducer;

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { logout } from '../../../redux/slices/authSlice';
+import { logoutUser } from '../../../redux/slices/authSlice';
 
 const UserProfileButton = () => {
   const dispatch = useDispatch();
@@ -17,7 +17,7 @@ const UserProfileButton = () => {
   };
 
   const handleLogoutConfirm = () => {
-    dispatch(logout());
+    dispatch(logoutUser());
     setShowLogoutConfirm(false);
   };
 

@@ -50,13 +50,12 @@ class GroqProvider extends AIProvider {
   constructor(apiKey) {
     super(apiKey);
     this.client = new Groq({ apiKey: this.apiKey });
+    // Updated to match actual Groq API production models as of Oct 2025
     this.availableModels = [
       "llama-3.1-8b-instant",
-      "llama-3.2-11b-text-preview", 
-      "llama-3.2-3b-preview",
+      "llama-3.3-70b-versatile",
       "gemma2-9b-it",
-      "mixtral-8x7b-32768",
-      "llama-3.1-70b-versatile" // Keep as fallback but use newer models by default
+      "mixtral-8x7b-32768"
     ];
   }
 
@@ -93,7 +92,7 @@ class GroqProvider extends AIProvider {
   async *streamMessage(messages, options = {}) {
     try {
       const {
-        model = "llama-3.1-70b-versatile",
+        model = "llama-3.3-70b-versatile",
         temperature = 0.7,
         maxTokens = 1000
       } = options;
@@ -131,17 +130,16 @@ class GroqProvider extends AIProvider {
  * Implements AIProvider interface for Google Gemini API
  */
 class GeminiProvider extends AIProvider {
-  constructor(apiKey) {
-    super(apiKey);
-    this.client = new GoogleGenerativeAI(this.apiKey);
-    this.availableModels = [
-      "gemini-2.5-flash",
-      "gemini-1.5-pro",
-      "gemini-1.0-pro"
-    ];
-  }
-
-  async sendMessage(messages, options = {}) {
+    constructor() {
+        super('gemini');
+        this.apiKey = process.env.GEMINI_API_KEY;
+        this.genAI = new GoogleGenerativeAI(this.apiKey);
+        this.availableModels = [
+            'gemini-2.5-flash',
+            'gemini-2.0-flash',
+            'gemini-flash-latest'
+        ];
+    }  async sendMessage(messages, options = {}) {
     try {
       const {
         model = "gemini-2.5-flash",
@@ -153,8 +151,11 @@ class GeminiProvider extends AIProvider {
       const lastMessage = messages[messages.length - 1];
       const prompt = this.formatMessagesForGemini(messages);
 
-      const genAI = this.client.getGenerativeModel({ 
-        model: model,
+      // Ensure the model name includes the 'models/' prefix for Gemini API
+      const fullModelName = model.startsWith('models/') ? model : `models/${model}`;
+
+      const genAI = this.genAI.getGenerativeModel({ 
+        model: fullModelName,
         generationConfig: {
           temperature: temperature,
           maxOutputTokens: maxTokens
@@ -186,8 +187,12 @@ class GeminiProvider extends AIProvider {
       } = options;
 
       const prompt = this.formatMessagesForGemini(messages);
-      const genAI = this.client.getGenerativeModel({ 
-        model: model,
+      
+      // Ensure the model name includes the 'models/' prefix for Gemini API
+      const fullModelName = model.startsWith('models/') ? model : `models/${model}`;
+      
+      const genAI = this.genAI.getGenerativeModel({ 
+        model: fullModelName,
         generationConfig: {
           temperature: temperature,
           maxOutputTokens: maxTokens

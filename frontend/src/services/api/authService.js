@@ -1,4 +1,4 @@
-const BASE_URL = '/api/v1/users';
+const BASE_URL = '/api/users';
 
 const authService = {
   register: async (userData) => {
@@ -59,6 +59,48 @@ const authService = {
       }
 
       return await response.json();
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  refreshToken: async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/refresh-token`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Token refresh failed');
+      }
+
+      return { data };
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  updatePreferences: async (preferences) => {
+    try {
+      const response = await fetch(`${BASE_URL}/preferences`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(preferences)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to update preferences');
+      }
+
+      return { data };
     } catch (error) {
       throw error;
     }

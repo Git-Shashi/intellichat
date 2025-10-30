@@ -43,7 +43,15 @@ const userSchema=new mongoose.Schema({
     preferences: {
       theme: { type: String, default: "light" },
       language: { type: String, default: "en" },
-      defaultModel: { type: String, default: "gpt-5" },
+      aiProvider: { 
+        type: String, 
+        enum: ['groq', 'gemini'],
+        default: "groq" 
+      },
+      aiModel: { 
+        type: String, 
+        default: "llama-3.3-70b-versatile" 
+      },
     },
     lastLogin: {
       type: Date,

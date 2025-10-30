@@ -20,18 +20,20 @@ const ConversationItem = ({ conversation }) => {
     <div
       onClick={handleConversationClick}
       className={`conversation-item cursor-pointer p-3 rounded-lg transition-colors
-        ${isActive ? 'bg-gray-700 text-white' : 'hover:bg-gray-100'}`}
+        ${isActive ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
     >
       <div className="conversation-title font-medium">
         {conversation.title || 'New Chat'}
       </div>
       <div className={`conversation-meta text-sm ${isActive ? 'text-gray-300' : 'text-gray-500'}`}>
         <span className="conversation-date">
-          {new Date(conversation.updatedAt).toLocaleDateString()}
+          {new Date(conversation.updatedAt || conversation.createdAt).toLocaleDateString()}
         </span>
-        <span className="message-count ml-2">
-          {conversation.messageCount} messages
-        </span>
+        {conversation.messageCount > 0 && (
+          <span className="message-count ml-2">
+            • {conversation.messageCount} messages
+          </span>
+        )}
       </div>
     </div>
   );

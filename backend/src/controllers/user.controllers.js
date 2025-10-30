@@ -269,6 +269,17 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         user.refreshTokenHash = refreshHash;
         await user.save({ validateBeforeSave: false });
 
+        // Prepare user response
+        const userResponse = {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            avatar: user.avatar,
+            preferences: user.preferences,
+            lastLogin: user.lastLogin,
+            createdAt: user.createdAt
+        };
+
         const cookieOptions = {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
@@ -286,7 +297,8 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
            .cookie("refreshToken", refreshToken, refreshCookieOptions)
            .json({
                success: true,
-               message: "Access token refreshed successfully"
+               message: "Access token refreshed successfully",
+               user: userResponse
            });
 
     } catch (error) {
@@ -294,4 +306,44 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     }
 });
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+const updateUserPreferences = asyncHandler(async (req, res) => {
+    const { theme, language, aiProvider, aiModel } = req.body;
+    
+    // Validate aiProvider if provided
+    if (aiProvider && !['groq', 'gemini'].includes(aiProvider)) {
+        throw new ApiError("Invalid AI provider. Must be 'groq' or 'gemini'", 400);
+    }
+
+    // Find user
+    const user = await User.findById(req.user._id);
+    if (!user) {
+        throw new ApiError("User not found", 404);
+    }
+
+    // Update preferences
+    if (theme) user.preferences.theme = theme;
+    if (language) user.preferences.language = language;
+    if (aiProvider) user.preferences.aiProvider = aiProvider;
+    if (aiModel) user.preferences.aiModel = aiModel;
+
+    await user.save();
+
+    // Return updated user
+    const userResponse = {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        preferences: user.preferences,
+        lastLogin: user.lastLogin,
+        createdAt: user.createdAt
+    };
+
+    res.status(200).json({
+        success: true,
+        message: "Preferences updated successfully",
+        user: userResponse
+    });
+});
+
+export { registerUser, loginUser, logoutUser, refreshAccessToken, updateUserPreferences };
