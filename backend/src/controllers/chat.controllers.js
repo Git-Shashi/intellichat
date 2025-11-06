@@ -20,8 +20,9 @@ const createConversation = asyncHandler(async (req, res) => {
     const selectedProvider = aiProvider || req.user.preferences?.aiProvider || 'groq';
     
     // Use user's preferred model for the selected provider
+    // Default to gemini-2.5-flash (Gemini 2.5) for Gemini provider — matches available models for current API key
     const selectedModel = req.user.preferences?.aiModel || 
-        (selectedProvider === 'gemini' ? 'gemini-1.5-flash' : 'llama-3.3-70b-versatile');
+        (selectedProvider === 'gemini' ? 'gemini-2.5-flash' : 'llama-3.3-70b-versatile');
 
     console.log('   ✅ Selected:', selectedProvider, '/', selectedModel);
 
