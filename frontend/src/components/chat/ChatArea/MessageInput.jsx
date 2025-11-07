@@ -5,7 +5,7 @@ import { selectCurrentTheme } from '../../../redux/slices/themeSlice';
 import socketService from '../../../services/socketService';
 import { v4 as uuidv4 } from 'uuid';
 
-const MessageInput = () => {
+const MessageInput = ({ aiSettings = {} }) => {
   const [content, setContent] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const textareaRef = useRef(null);
@@ -14,6 +14,18 @@ const MessageInput = () => {
   const isStreaming = useSelector(state => state.chat.isStreaming);
   const messages = useSelector(state => state.chat.messages);
   const theme = useSelector(selectCurrentTheme);
+
+  // Default AI settings
+  const defaultSettings = {
+    model: 'llama-3.1-8b-instant',
+    temperature: 0.7,
+    maxTokens: 1000,
+    topP: 1.0,
+    frequencyPenalty: 0,
+    presencePenalty: 0
+  };
+
+  const currentSettings = { ...defaultSettings, ...aiSettings };
 
   useEffect(() => {
     // Setup socket listeners for streaming
@@ -107,13 +119,16 @@ const MessageInput = () => {
         content: content.trim()
       });
 
-      // Send via socket for streaming
+      // Send via socket for streaming with AI settings
       socketService.sendMessage({
         messages: messageHistory,
         provider: currentConversation.aiProvider || 'groq',
-        model: 'llama-3.1-8b-instant',
-        temperature: 0.7,
-        maxTokens: 1000,
+        model: currentSettings.model,
+        temperature: currentSettings.temperature,
+        maxTokens: currentSettings.maxTokens,
+        topP: currentSettings.topP,
+        frequencyPenalty: currentSettings.frequencyPenalty,
+        presencePenalty: currentSettings.presencePenalty,
         messageId: messageId,
         conversationId: currentConversation._id,
         userMessageContent: content.trim()

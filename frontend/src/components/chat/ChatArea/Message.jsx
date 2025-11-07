@@ -6,8 +6,9 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
 import 'highlight.js/styles/github-dark.css';
+import MessageActions from './MessageActions';
 
-const Message = ({ message, isHistorical = false }) => {
+const Message = ({ message, isHistorical = false, onRegenerate, onEdit, onDelete }) => {
   const isUser = message.role === 'user';
   const isStreaming = message.isStreaming;
   const theme = useSelector(selectCurrentTheme);
@@ -135,15 +136,28 @@ const Message = ({ message, isHistorical = false }) => {
           </span>
         )}
         
-        {/* Timestamp */}
-        {!isStreaming && message.createdAt && (
-          <div className={`text-xs mt-2 flex items-center gap-1 ${
-            isUser ? 'text-indigo-200' : 'text-gray-400'
-          }`}>
-            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-            </svg>
-            {new Date(message.createdAt).toLocaleTimeString()}
+        {/* Timestamp and Actions Row */}
+        {!isStreaming && (
+          <div className="flex items-center justify-between gap-2 mt-2">
+            {/* Timestamp */}
+            {message.createdAt && (
+              <div className={`text-xs flex items-center gap-1 ${
+                isUser ? 'text-indigo-200' : 'text-gray-400'
+              }`}>
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                </svg>
+                {new Date(message.createdAt).toLocaleTimeString()}
+              </div>
+            )}
+
+            {/* Message Actions */}
+            <MessageActions
+              message={message}
+              onRegenerate={onRegenerate}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
           </div>
         )}
       </div>
